@@ -1,0 +1,104 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.Profiling;
+
+// Chunk types:
+// Main chunk: Rendered, simulated, hitboxes
+// Secondary chunk: Rendered, simulated
+// Visual chunk: Rendered (No logic)
+
+namespace ProceduralGen 
+{
+    // Manage data regarding chunks:
+    // Creating / destroying / reusing meshes
+    // Chunk pools, Resource loading and management
+    public class ChunkManager 
+    {
+        private static List<GameObject> chunks = new List<GameObject>();
+
+        private Material baseMat;
+        private TerrainSampler sampler;
+        private int mainChunksRad;
+
+        private const int maxVerts = 65535;
+        private const int maxTris = 255;
+
+        public ChunkManager(Material bm, TerrainSampler s, int mainRad) {
+            baseMat = bm;
+            sampler = s;
+            mainChunksRad = mainRad;
+        }
+
+        public void generateStdTerrainChunk(int offsetX, int offsetZ, int sections, float size, bool hitBox = false) {
+            int noTris = (sections) * (sections);
+            int noVerts = (sections + 1) * (sections + 1);
+            int noUvs = (sections + 1) * (sections + 1);
+
+            if (noVerts >= maxVerts) {
+                Debug.LogWarning($"Creating a chunk mesh with too many verts: {noVerts}/{maxVerts}");
+            }
+
+            if (hitBox && noTris >= maxTris) {
+                Debug.LogWarning($"Creating a chunk hitbox with too many tris: {noTris}/{maxTris}");
+            }
+
+            var go = new GameObject();
+            MeshRenderer meshRenderer = go.AddComponent<MeshRenderer>();
+            meshRenderer.sharedMaterial = baseMat;
+            MeshFilter meshFilter = go.AddComponent<MeshFilter>();
+            Mesh mesh = new Mesh();
+
+            Vector3[] vertices = new Vector3[noVerts];
+            int[] tris = new int[noTris * 6];
+            Vector2[] uvs = new Vector2[noUvs];
+
+            int i = 0;
+            int triIndex = 0;
+            int col = 0; // column; for triangle placement
+            for (int x = 0; x <= sections; x++) {
+                for (int z = 0; z <= sections; z++) {
+                    var xPos = x * (size / sections) + offsetX;
+                    var zPos = z * (size / sections) - offsetZ;
+                    var y = sampler.Sample(xPos, zPos);
+
+                    vertices[i] = new Vector3(xPos, y, zPos);
+                    uvs[i] = new Vector2(x, z);
+                    i++;
+
+                    // new column
+                    if (x > 0 && z == 0) {
+                        col += sections + 1;
+                    }
+
+                    // generate triangles
+                    if (x > 0 && x <= sections && z > 0 && z <= sections) {
+                        int v = col + z;
+                        tris[triIndex] = v - (sections + 1);     // + 0
+                        tris[triIndex + 1] = v;                      // + 2
+                        tris[triIndex + 2] = v - 1 - (sections + 1); // + 1
+                        tris[triIndex + 3] = v - 1 - (sections + 1); // + 1
+                        tris[triIndex + 4] = v;                      // + 2
+                        tris[triIndex + 5] = v - 1;                  // + 3
+                        triIndex += 6;
+                    }
+                }
+            }
+
+            mesh.vertices = vertices;
+            mesh.uv = uvs;
+            mesh.triangles = tris;
+            mesh.RecalculateNormals();
+            meshFilter.mesh = mesh;
+
+            if (hitBox) {
+                var meshColl = go.AddComponent<MeshCollider>();
+                meshColl.sharedMesh = mesh;
+            }
+
+            chunks.Append(go);
+        }
+    }
+}
