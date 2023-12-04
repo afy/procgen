@@ -12,6 +12,7 @@ public class PlayerMove : MonoBehaviour
     public float jumpHeight;
     public float fallSpeed;
     public float sprintSpeed;
+    public bool enableGrav;
 
     private Vector3 velocity; 
     private float g = -9.82f;
@@ -79,7 +80,7 @@ public class PlayerMove : MonoBehaviour
             velocity.y += Mathf.Sqrt(jumpHeight * -fallSpeed * g);
         }
 
-        velocity.y += g * Time.deltaTime;
+        if (enableGrav) { velocity.y += g * Time.deltaTime; }
         if (velocity != Vector3.zero) {
             controller.Move(velocity * Time.deltaTime);
         }

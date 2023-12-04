@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,8 +8,7 @@ using UnityEngine.Profiling;
 
 // Chunk types:
 // Main chunk: Rendered, simulated, hitboxes
-// Secondary chunk: Rendered, simulated
-// Visual chunk: Rendered (No logic)
+// Simulated chunk: Rendered, simulated
 
 namespace ProceduralGen 
 {
@@ -17,22 +17,53 @@ namespace ProceduralGen
     // Chunk pools, Resource loading and management
     public class ChunkManager 
     {
-        private static List<GameObject> chunks = new List<GameObject>();
+        private static Dictionary<Tuple<int, int>, GameObject> mainChunks = new Dictionary<Tuple<int, int>, GameObject>();
+        private static Dictionary<Tuple<int, int>, GameObject> simulatedChunks = new Dictionary<Tuple<int, int>, GameObject>();
 
-        private Material baseMat;
+        private ProcGenSettings settings;
+        private Material baseChunkMat;
         private TerrainSampler sampler;
-        private int mainChunksRad;
 
         private const int maxVerts = 65535;
         private const int maxTris = 255;
 
-        public ChunkManager(Material bm, TerrainSampler s, int mainRad) {
-            baseMat = bm;
+        public ChunkManager(Material bm, TerrainSampler s, ProcGenSettings se) {
+            baseChunkMat = bm;
             sampler = s;
-            mainChunksRad = mainRad;
+            settings = se;
         }
 
-        public void generateStdTerrainChunk(int offsetX, int offsetZ, int sections, float size, bool hitBox = false) {
+        public void simulateChunks() { 
+        }
+
+        public void loadMainChunks(List<Tuple<int, int>> ids) {
+            foreach (var cid in ids) {
+                mainChunks[cid] = generateStdTerrainChunk(
+                    cid.Item1 * settings.defaultSize,
+                    cid.Item2 * settings.defaultSize,
+                    settings.defaultSections,
+                    settings.defaultSize,
+                    true
+                );
+            }
+        }
+
+        public void loadSecondaryChunks(List<Tuple<int, int>> ids) {
+            foreach (var cid in ids) {
+                simulatedChunks[cid] = generateStdTerrainChunk(
+                    cid.Item1 * settings.defaultSize,
+                    cid.Item2 * settings.defaultSize,
+                    settings.defaultSections,
+                    settings.defaultSize,
+                    false
+                );
+            }
+        }
+
+        public void updateVisualAroundOrigin(Tuple<int, int> origin) { 
+        }
+
+        private GameObject generateStdTerrainChunk(int offsetX, int offsetZ, int sections, float size, bool hitBox = false) {
             int noTris = (sections) * (sections);
             int noVerts = (sections + 1) * (sections + 1);
             int noUvs = (sections + 1) * (sections + 1);
@@ -47,7 +78,7 @@ namespace ProceduralGen
 
             var go = new GameObject();
             MeshRenderer meshRenderer = go.AddComponent<MeshRenderer>();
-            meshRenderer.sharedMaterial = baseMat;
+            meshRenderer.sharedMaterial = baseChunkMat;
             MeshFilter meshFilter = go.AddComponent<MeshFilter>();
             Mesh mesh = new Mesh();
 
@@ -98,7 +129,7 @@ namespace ProceduralGen
                 meshColl.sharedMesh = mesh;
             }
 
-            chunks.Append(go);
+            return go;
         }
     }
 }

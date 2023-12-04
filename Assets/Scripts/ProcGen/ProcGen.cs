@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Experimental.AI;
 
 namespace ProceduralGen  
 {
@@ -8,16 +11,14 @@ namespace ProceduralGen
     // Manage loading/deloading logic
     public class ProcGen : MonoBehaviour 
     {
+        public ProceduralGen.ProcGenSettings settings = new ProcGenSettings();
+        public ProceduralGen.TerrainSamplerSettings samplerSettings = new TerrainSamplerSettings();
         public GameObject trackedObject;
         public Material baseMat;
-        public int defaultSections;
-        public int defaultSize;
-        public int mainChunksRadius;
 
-        private ProceduralGen.TerrainSampler sampler = new TerrainSampler();
+        private ProceduralGen.TerrainSampler sampler;
         private ProceduralGen.ChunkManager chunkManager;
-
-        private Vector2 trackedOffset; // x, z
+        private Tuple<int, int> trackedId;
 
         private void Start() {
             if (baseMat == null) {
@@ -28,35 +29,53 @@ namespace ProceduralGen
                 Debug.LogWarning("No object has been registered for tracking");
             }
 
-            chunkManager = new ChunkManager(baseMat, sampler, mainChunksRadius);
+            sampler = new TerrainSampler(samplerSettings);
+            chunkManager = new ChunkManager(baseMat, sampler, settings);
+            trackedId = ProceduralGen.Tools.chunkIdFromVal(trackedObject, settings.defaultSize);
 
-            trackedOffset = new Vector2(
-                Mathf.FloorToInt(trackedObject.transform.position.x / defaultSize),
-                Mathf.FloorToInt(trackedObject.transform.position.z / defaultSize) 
-            );
-
-            chunkManager.generateStdTerrainChunk(0, 0, defaultSections, defaultSize, true);
-            chunkManager.generateStdTerrainChunk(0, 1 * defaultSize, defaultSections, defaultSize, true);
-            chunkManager.generateStdTerrainChunk(0, 2 * defaultSize, defaultSections, defaultSize, true);
+            updateChunks();
         }
 
         private void Update() {
+            chunkManager.simulateChunks();
+
             if (trackedObject == null) {
                 return;
             }
 
-            int currChunkX = Mathf.FloorToInt(trackedObject.transform.position.x / defaultSize);
-            int currChunkZ = Mathf.FloorToInt(trackedObject.transform.position.z / defaultSize);
-
-            if (currChunkX != trackedOffset.x || currChunkZ != trackedOffset.y) {
-                trackedOffset.x = currChunkX;
-                trackedOffset.y = currChunkZ;
-                updateHitboxChunks();
+            var curr = ProceduralGen.Tools.chunkIdFromVal(trackedObject, settings.defaultSize);
+            if (!curr.Equals(trackedId)) {
+                trackedId = curr;
+                updateChunks();
             }
         }
 
-        private void updateHitboxChunks() {
-            Debug.Log(trackedOffset);
+        private void updateChunks() {
+            Debug.Log(trackedId);
+
+            List<Tuple<int, int>> main = new List<Tuple<int, int>>();
+            List<Tuple<int, int>> secondary = new List<Tuple<int, int>>();
+
+            for (int x = -settings.simulatedChunksRadius; x <= settings.simulatedChunksRadius; x++) {
+                for (int z = -settings.simulatedChunksRadius; z <= settings.simulatedChunksRadius; z++) {
+                    int trueX = x + trackedId.Item1;
+                    int trueZ = z + trackedId.Item2; 
+
+                    if (Mathf.Abs(x) <= settings.mainChunkRadius && Mathf.Abs(z) <= settings.mainChunkRadius) {
+                        main.Add(new Tuple<int, int>(trueX, trueZ));
+                    }
+                    else { 
+                        secondary.Add(new Tuple<int, int>(trueX, trueZ));
+                    }
+                }
+            }
+
+            Debug.Log(main.Count);
+            Debug.Log(secondary.Count);
+
+            chunkManager.loadMainChunks(main);
+            chunkManager.loadSecondaryChunks(secondary);
+            chunkManager.updateVisualAroundOrigin(trackedId);
         }
     }
 }

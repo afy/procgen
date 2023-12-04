@@ -152,11 +152,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1c61ed9b736127741b2a6a90633b1182, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  settings:
+    defaultSections: 10
+    defaultSize: 1000
+    mainChunkRadius: 1
+    simulatedChunksRadius: 4
+    maxViewingDistance: 5000
+  samplerSettings:
+    amp: 10
+    scale: 10.53
   trackedObject: {fileID: 668213418}
   baseMat: {fileID: 2100000, guid: ec42334f51856204593a51f00bce3e62, type: 2}
-  defaultSections: 15
-  defaultSize: 100
-  mainChunksRadius: 0
 --- !u!4 &155181454
 Transform:
   m_ObjectHideFlags: 0
@@ -252,6 +258,7 @@ MonoBehaviour:
   jumpHeight: 1
   fallSpeed: 3
   sprintSpeed: 10
+  enableGrav: 1
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0

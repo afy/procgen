@@ -10,14 +10,17 @@ namespace ProceduralGen
     // E.g. terrain height, nature, material 
     public class TerrainSampler
     {
-        public float amp = 1f;
-        public float scale = 10.001f;
+        private ProceduralGen.TerrainSamplerSettings settings;
+
+        public TerrainSampler(TerrainSamplerSettings s) {
+            settings = s;
+        }   
 
         public float Sample(float x, float z)
         {
-            return amp * Mathf.PerlinNoise(
-                (float)x / scale,
-                (float)z / scale
+            return settings.amp * Mathf.PerlinNoise(
+                (float)x / settings.scale,
+                (float)z / settings.scale
             );
         }
     }
